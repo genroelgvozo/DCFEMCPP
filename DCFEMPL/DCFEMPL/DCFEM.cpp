@@ -1,5 +1,75 @@
 #include "DCFEM.h"
 
+
+double DCFEMPL::Ni(int i, double x, int s1, double h)
+{
+	switch (s1)
+	{
+	case 0:
+		switch (i)
+		{
+		case 1:
+			return 1 - 3 * x*x + 2 * x*x*x;
+		case 2:
+			return h * (x - 2 * x*x + x * x*x);
+		case 3:
+			return h * (3 * x*x - 2 * x*x*x);
+		case 4:
+			return x * x*x - x * x;
+		default:
+			break;
+		}
+		break;
+	case 1:
+		switch (i)
+		{
+		case 1:
+			return -6 * x + 6 * x*x;
+		case 2:
+			return h * (1 - 4 * x + 3 * x*x);
+		case 3:
+			return h * (6 * x - 6 * x*x);
+		case 4:
+			return 3 * x*x - 2 * x;
+		default:
+			break;
+		}
+		break;
+	case 2:
+		switch (i)
+		{
+		case 1:
+			return 12 * x - 6;
+		case 2:
+			return h * (6 * x - 4);
+		case 3:
+			return h * (6 - 12 * x);
+		case 4:
+			return 6 * x - 2;
+		default:
+			break;
+		}
+		break;
+	case 3:
+		switch (i)
+		{
+		case 1:
+			return 12;
+		case 2:
+			return 6 * h;
+		case 3:
+			return -12 * h;
+		case 4:
+			return 6;
+		default:
+			break;
+		}
+	default:
+		break;
+	}
+	return 0.0;
+}
+
 Matrix4d DCFEMPL::get_K0(int i)
 {
 	double h = xmesh[i + 1] - xmesh[i];
@@ -33,13 +103,41 @@ Matrix4d DCFEMPL::get_K4(int i)
 	H(1, 1) = h;
 	H(2, 2) = 1;
 	H(3, 3) = h;
-	K4 << 156, 22, 54, -13, 
-		  22, 4, 13, -3,
-		  54, 13, 156, -22,
-		  -13, -3, -22, 4;
+	K4 << 156, 22, 54, -13,
+		22, 4, 13, -3,
+		54, 13, 156, -22,
+		-13, -3, -22, 4;
 	K4 = H * K4*H;
 	K4 = D * h*K4 / 420;
 	return K4;
+}
+
+void DCFEMPL::constructB()
+{
+	B1.resize(num_points*num_dofs, size_a);
+	B1.fill(0);
+
+	for (int i = 0; i < num_points; i++)
+	{
+		B1(i*num_dofs, i*num_dofs) = 1;
+		B1(i*num_dofs + 1, i*num_dofs + 1) = 1;
+		B1(i*num_dofs + 2, i*num_dofs + 4) = 1;
+		B1(i*num_dofs + 3, i*num_dofs + 5) = 1;
+	}
+
+	B2.resize(size_a, size_a);
+	B2.fill(0);
+	for (int i = 0; i < num_points; i++)
+	{
+		B1(i * 2 * num_dofs, i * 2 * num_dofs) = 1;				// displacement
+		B1(i * 2 * num_dofs + 1, i * 2 * num_dofs + 4) = 1;		// theta_x = d_1(y) = z1
+		B1(i * 2 * num_dofs + 2, i * 2 * num_dofs + 1) = 1;		// theta_y = d_2(y) = y2
+		B1(i * 2 * num_dofs + 3, i * 2 * num_dofs + 5) = 1;		// wxy = z2
+		double h = xmesh[i + 1] - xmesh[i];
+		double E = EX[i];
+		double nu = PRXY[i];
+		double D = E * dh*dh*dh / (12 * (1 - nu * nu));
+	}
 }
 
 void DCFEMPL::construct()
@@ -96,17 +194,17 @@ Matrix4d DCFEMPL::get_K2(int i)
 	H(1, 1) = h;
 	H(2, 2) = 1;
 	H(3, 3) = h;
-	K2_3 << -36, -33, 36, -3, 
-		    -3, -4,  3,   1, 
-		    36,  3, -36,  33,
-		     -3, 1,   3,  -4;
+	K2_3 << -36, -33, 36, -3,
+		-3, -4, 3, 1,
+		36, 3, -36, 33,
+		-3, 1, 3, -4;
 	K2_3 = H * K2_3*H;
 	K2_3 = -D * nu*K2_3 / 30 / h;
 	K2_3 = K2_3.eval() + K2_3.transpose().eval();
 	K2_2 << 36, 3, -36, 3,
-		     3, 4, -3, -1,
-		   -36, -3, 36, -3,
-		     3, -1, -3, 4;
+		3, 4, -3, -1,
+		-36, -3, 36, -3,
+		3, -1, -3, 4;
 	K2_2 = H * K2_2*H;
 	K2_2 = D * (1 - nu)*K2_2 / 15 / h;
 
