@@ -27,14 +27,15 @@ class SOLVER
 	int l;
 
 	int size_k;
-	MatrixXd K;
-	VectorXd R;
+
 
 public:
+	MatrixXd K;
+	VectorXd R;
 	VectorXd res;
 	EigenSolver<MatrixXd>* eigen_sol;
 
-	MatrixXcd T, T1, P2, A2, A2_2, A2_3;
+	MatrixXcd T, T1, P2, A2, A2_2, A2_3, A2_4, A2_5, A2_6, P2_2;
 	VectorXcd e, e2;
 
 	shared_ptr<spdlog::logger> logger;
@@ -95,11 +96,19 @@ public:
 		}
 
 		ofstream f("results/eigen_values.txt");
+		f.precision(3);
+		f << fixed;
+
 		for (int i = 0; i < e.size(); i++)
 		{
 			f << e(i) << " " << e2(i) << endl;
 		}
+		f.close();
 
+		for (int i = 0; i < l; i++)
+		{
+			T.col(i).normalize();
+		}
 
 		for (int i = 0; i < l; i++)
 		{
@@ -108,13 +117,59 @@ public:
 			T1.row(i) *= c;
 		}
 
+
+		T1 = (T1*T).inverse() *  T1;
+
 		P2 = T * T1;
+
+
 		P2 = -P2;
 		for (int i = 0; i < size_dcfem; i++)
 			P2(i, i) = 1.0 + P2(i, i);
+
+
+		f.open("results/P2.txt");
+		f << P2 << endl;
+		f.close();
+
+		f.open("results/P2xP2.txt");
+		P2_2 = P2 * P2;
+		f << P2_2 << endl;
+		f.close();
+
+
 		A2 = P2 * model1.mat_a;
 		A2_2 = A2 * A2;
 		A2_3 = A2_2 * A2;
+		A2_4 = A2_3 * A2;
+		A2_5 = A2_4 * A2;
+		A2_6 = A2_5 * A2;
+
+		f.open("results/A2.txt");
+		f << A2 << endl;
+		f.close();
+		f.open("results/A2_2.txt");
+		f << A2_2 << endl;
+		f.close();
+		f.open("results/A2_3.txt");
+		f << A2_3 << endl;
+		f.close();
+		f.open("results/A2_4.txt");
+		f << A2_4 << endl;
+		f.close();
+		f.open("results/A2_5.txt");
+		f << A2_5 << endl;
+		f.close();
+		f.open("results/A2_6.txt");
+		f << A2_6 << endl;
+		f.close();
+
+		MatrixXcd E, E2;
+		calcFundFuncMatrix(0, 1, E);
+		calcFundFuncMatrix(0, -1, E2);
+		f.open("results/E-E2.txt");
+		f << E - E2 << endl;
+		f.close();
 
 		size_fem = model2.get_size();
 		num_bound_points = model1.num_points;

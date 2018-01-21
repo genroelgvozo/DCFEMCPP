@@ -30,7 +30,7 @@ int main()
 
 	FEMPL_RECT FEMplate(n1*n2, x, y);
 	FEMplate.set_mat(0, n1 - 2, 0, n2 - 2, E, nu);
-	FEMplate.add_pres(0, n1 - 2, 0, n2 - 2, 10000000);
+	//FEMplate.add_pres(0, n1 - 2, 0, n2 - 2, 10000000);
 	FEMplate.constructK();
 
 	for (int i = 0; i < n2; i++)
@@ -58,16 +58,25 @@ int main()
 	sol.constructSystem();
 
 	ofstream f("results/w.txt");
+	f.precision(3);
 	for (int i = 0; i < n1; i++)
 	{
 		for (int j = 0; j < n2; j++)
 		{
-			f << sol.res[DCFEMplate.size_a + (i*n2 + j) * 4] << " ";
+			f << fixed << sol.res[DCFEMplate.size_a + (i*n2 + j) * 4] << " ";
 		}
 		f << endl;
 	}
 	f.close();
 
+	f.open("results/K_fem.txt");
+	f << FEMplate.K << endl;
+
+	f.close();
+
+	f.open("results/K_solver.txt");
+	f << sol.K << endl;
+	f.close();
 
 	return 0;
 }

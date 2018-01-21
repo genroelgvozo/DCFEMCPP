@@ -341,7 +341,7 @@ void FEMPL_RECT::calc_elem_result(VectorXd u, int i, int j, int num, VectorXd& M
 	E = EX[i][j];
 	nu = PRXY[i][j];
 
-	MatrixXd D(4,5);
+	MatrixXd D(4, 5);
 	D(0, 0) = E * h*h*h / (12 * (1 - nu * nu));
 	D(1, 1) = D(0, 0);
 	D(0, 1) = D(1, 0) = D(0, 0) * nu;
@@ -437,8 +437,8 @@ void FEMPL_RECT::constructB()
 		b = ymesh[i + 1] - ymesh[i];
 		B(8 * i, 4 * i) = 1;
 		B(8 * i + 3, 4 * i + 3) = 1;
-		B(8 * i + 1, 4 * i + 1) = 1.0/a;
-		B(8 * i + 2, 4 * i + 2) = 1.0/b;
+		B(8 * i + 1, 4 * i + 1) = 1.0 / a;
+		B(8 * i + 2, 4 * i + 2) = 1.0 / b;
 	}
 
 	VectorXd u(size_k);
@@ -490,19 +490,19 @@ void FEMPL_RECT::add_bc(int num_node, int type)
 		for (int i = 0; i < 4; i++)
 		{
 			K.row(num_node * node_dofs + i).fill(0);
-			K.col(num_node * node_dofs + i).fill(0);
-			K(num_node * node_dofs + i, num_node * node_dofs + i) = 1;
+			K(num_node * node_dofs + i, num_node * node_dofs + i) = 100000000;
 			R(num_node*node_dofs + i) = 0;
 		}
 		break;
 	case 2:
-		for (int i = 3; i < 4; i++)
+		for (int i = 0; i < 4; i++)
 		{
 			K.row(num_node * node_dofs + i).fill(0);
-			K.col(num_node * node_dofs + i).fill(0);
-			K(num_node * node_dofs + i, num_node * node_dofs + i) = 1;
+			K(num_node * node_dofs + i, num_node * node_dofs + i) = 100000000;
 			R(num_node*node_dofs + i) = 0;
 		}
+		R(num_node*node_dofs) = 100000000;
+
 		break;
 	default:
 		break;
