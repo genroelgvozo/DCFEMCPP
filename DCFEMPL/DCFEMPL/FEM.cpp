@@ -1,6 +1,6 @@
 #include "FEM.h"
 #include <iostream>
-
+#include <fstream>
 
 double FEMPL_RECT::Ni(int i, double x, int s1)
 {
@@ -341,7 +341,7 @@ void FEMPL_RECT::calc_elem_result(VectorXd u, int i, int j, int num, VectorXd& M
 	E = EX[i][j];
 	nu = PRXY[i][j];
 
-	Matrix4d D;
+	MatrixXd D(4,5);
 	D(0, 0) = E * h*h*h / (12 * (1 - nu * nu));
 	D(1, 1) = D(0, 0);
 	D(0, 1) = D(1, 0) = D(0, 0) * nu;
@@ -369,14 +369,14 @@ void FEMPL_RECT::calc_elem_result(VectorXd u, int i, int j, int num, VectorXd& M
 		Bm(2, i1) = 2 * Nij(Ind(0, i1), Ind(1, i1), x, y, 1, 1) / a / b;
 		Bm(3, i1) = Nij(Ind(0, i1), Ind(1, i1), x, y, 2, 1) / a / a / b;
 		Bm(4, i1) = Nij(Ind(0, i1), Ind(1, i1), x, y, 0, 3) / b / b / b;
-		Bv(0, i1) = Nij(Ind(0, i1), Ind(1, i1), x, y, 3, 0) / a / a / a + Nij(Ind(0, i1), Ind(1, i1), x, y, 1, 2) / b / b / a;
-		Bv(1, i1) = Nij(Ind(0, i1), Ind(1, i1), x, y, 2, 1) / a / a / b + Nij(Ind(0, i1), Ind(1, i1), x, y, 0, 3) / b / b / b;
-		Bv(2, i1) = Nij(Ind(0, i1), Ind(1, i1), x, y, 3, 1) / a / a / b + Nij(Ind(0, i1), Ind(1, i1), x, y, 1, 3) / b / b / b;
+		Bv(0, i1) = Nij(Ind(0, i1), Ind(1, i1), x, y, 3, 0) / a / a / a + (2 - nu)*Nij(Ind(0, i1), Ind(1, i1), x, y, 1, 2) / b / b / a;
+		Bv(1, i1) = Nij((2 - nu)*Ind(0, i1), Ind(1, i1), x, y, 2, 1) / a / a / b + Nij(Ind(0, i1), Ind(1, i1), x, y, 0, 3) / b / b / b;
+		Bv(2, i1) = Nij(Ind(0, i1), Ind(1, i1), x, y, 3, 1) / a / a / b + (2 - nu)*Nij(Ind(0, i1), Ind(1, i1), x, y, 1, 3) / b / b / b;
 	}
 	Bv = -D(0, 0) * Bv;
 	V = Bv * u_elem;
 
-	M = Bm * u_elem;
+	M = D* Bm * u_elem;
 }
 
 void FEMPL_RECT::calc_node_result(VectorXd u, int i, int j, VectorXd& M, VectorXd& V)
@@ -398,7 +398,7 @@ void FEMPL_RECT::calc_node_result(VectorXd u, int i, int j, VectorXd& M, VectorX
 		}
 		if (j < y_size - 1)
 		{
-			calc_elem_result(u, i - 1, j, 3, M_temp, V_temp);
+			calc_elem_result(u, i - 1, j, 2, M_temp, V_temp);
 			M += M_temp;
 			V += V_temp;
 			count++;
@@ -408,14 +408,14 @@ void FEMPL_RECT::calc_node_result(VectorXd u, int i, int j, VectorXd& M, VectorX
 	{
 		if (j > 0)
 		{
-			calc_elem_result(u, i, j - 1, 3, M_temp, V_temp);
+			calc_elem_result(u, i, j - 1, 4, M_temp, V_temp);
 			M += M_temp;
 			V += V_temp;
 			count++;
 		}
 		if (j < y_size - 1)
 		{
-			calc_elem_result(u, i, j, 3, M_temp, V_temp);
+			calc_elem_result(u, i, j, 1, M_temp, V_temp);
 			M += M_temp;
 			V += V_temp;
 			count++;
@@ -427,6 +427,7 @@ void FEMPL_RECT::calc_node_result(VectorXd u, int i, int j, VectorXd& M, VectorX
 
 void FEMPL_RECT::constructB()
 {
+	ofstream f("results/B_FEM.txt");
 	B.fill(0);
 
 	for (int i = 0; i < y_size; i++)
@@ -434,10 +435,10 @@ void FEMPL_RECT::constructB()
 		double a, b;
 		a = xmesh[1] - xmesh[0];
 		b = ymesh[i + 1] - ymesh[i];
-		B(8 * i, 8 * i) = 1;
-		B(8 * i + 3, 8 * i + 3) = 1;
-		B(8 * i + 1, 8 * i + 1) = 1.0 / a;
-		B(8 * i + 2, 8 * i + 2) = 1.0 / b;
+		B(8 * i, 4 * i) = 1;
+		B(8 * i + 3, 4 * i + 3) = 1;
+		B(8 * i + 1, 4 * i + 1) = 1.0/a;
+		B(8 * i + 2, 4 * i + 2) = 1.0/b;
 	}
 
 	VectorXd u(size_k);
@@ -450,12 +451,13 @@ void FEMPL_RECT::constructB()
 			u.fill(0);
 			u(j) = 1;
 			calc_node_result(u, 0, i, M, V);
-			B(8 * i + 4, i) = M(0);
-			B(8 * i + 5, i) = V(0);
-			B(8 * i + 6, i) = M(3);
-			B(8 * i + 7, i) = V(2);
+			B(8 * i + 4, j) = M(0);
+			B(8 * i + 5, j) = V(0);
+			B(8 * i + 6, j) = M(3);
+			B(8 * i + 7, j) = V(2);
 		}
 	}
+	f << B;
 }
 
 void FEMPL_RECT::constructK()

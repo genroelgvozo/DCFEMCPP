@@ -44,9 +44,9 @@ public:
 
 	void constructB();
 	void construct();
-	DCFEMPL(int num_points, const vector<double>& x) : DCFEM(num_points, 4), xmesh(x), EX(vector<double>(num_points - 1, 0)), PRXY(vector<double>(num_points - 1, 0)) {
-		x21 = 0;
-		x22 = 1;
+	DCFEMPL(int num_points, double _x21, double _x22, const vector<double>& x) : DCFEM(num_points, 4), xmesh(x), EX(vector<double>(num_points - 1, 0)), PRXY(vector<double>(num_points - 1, 0)) {
+		x21 = _x21;
+		x22 = _x22;
 		x_size = xmesh.size();
 	};
 
@@ -64,7 +64,7 @@ public:
 		}
 	}
 
-	void add_force(int x2, int num, double f)
+	void add_force(double x2, int num, double f)
 	{
 		load l;
 		l.num_node = num;

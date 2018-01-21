@@ -1,5 +1,5 @@
 #include "DCFEM.h"
-
+#include <fstream>
 
 double DCFEMPL::Ni(int i, double x, int s1, double h)
 {
@@ -98,6 +98,7 @@ Matrix4d DCFEMPL::get_K4(int i)
 	double nu = PRXY[i];
 	double D = E * dh*dh*dh / (12 * (1 - nu * nu));
 	Matrix4d K4, H;
+	K4.fill(0);
 	H.fill(0);
 	H(0, 0) = 1;
 	H(1, 1) = h;
@@ -114,30 +115,110 @@ Matrix4d DCFEMPL::get_K4(int i)
 
 void DCFEMPL::constructB()
 {
-	B1.resize(num_points*num_dofs, size_a);
+	ofstream f("results/B1_DCFEM.txt");
+	B1.resize(num_points * 4, num_points * 8);
 	B1.fill(0);
 
 	for (int i = 0; i < num_points; i++)
 	{
-		B1(i*num_dofs, i*num_dofs) = 1;
-		B1(i*num_dofs + 1, i*num_dofs + 1) = 1;
-		B1(i*num_dofs + 2, i*num_dofs + 4) = 1;
-		B1(i*num_dofs + 3, i*num_dofs + 5) = 1;
+		B1(i * 4, 2 * i) = 1;
+		B1(i * 4 + 1, 2 * i + 1) = 1;
+		B1(i * 4 + 2, 2 * num_points + 2 * i) = 1;
+		B1(i * 4 + 3, 2 * num_points + 2 * i + 1) = 1;
 	}
+
+	f << B1;
+	f.close();
+	f.open("results/B2_DCFEM.txt");
 
 	B2.resize(size_a, size_a);
 	B2.fill(0);
 	for (int i = 0; i < num_points; i++)
 	{
-		B1(i * 2 * num_dofs, i * 2 * num_dofs) = 1;				// displacement
-		B1(i * 2 * num_dofs + 1, i * 2 * num_dofs + 4) = 1;		// theta_x = d_1(y) = z1
-		B1(i * 2 * num_dofs + 2, i * 2 * num_dofs + 1) = 1;		// theta_y = d_2(y) = y2
-		B1(i * 2 * num_dofs + 3, i * 2 * num_dofs + 5) = 1;		// wxy = z2
-		double h = xmesh[i + 1] - xmesh[i];
-		double E = EX[i];
-		double nu = PRXY[i];
-		double D = E * dh*dh*dh / (12 * (1 - nu * nu));
+		B2(i * 8, 2 * i) = 1;						// displacement
+		B2(i * 8 + 1, 2 * i + 1) = 1;						// theta_x = d_1(y) = z1
+		B2(i * 8 + 2, 2 * num_points + 2 * i) = 1;	// theta_y = d_2(y) = y2
+		B2(i * 8 + 3, 2 * num_points + 2 * i + 1) = 1;		// wxy = z2
+		int factor = 0;
+		double h, E, nu, D;
+
+		if (i > 0) {
+			factor++;
+			h = xmesh[i] - xmesh[i - 1];
+			E = EX[i - 1];
+			nu = PRXY[i - 1];
+			D = E * dh*dh*dh / (12 * (1 - nu * nu));
+
+			// M2
+			B2(i * 8 + 4, 2 * i - 2) += -D * nu*Ni(1, 1, 2, h) / h / h;
+			B2(i * 8 + 4, 2 * i - 1) += -D * nu*Ni(2, 1, 2, h) / h / h;
+			B2(i * 8 + 4, 2 * i) += -D * nu*Ni(3, 1, 2, h) / h / h;
+			B2(i * 8 + 4, 2 * i + 1) += -D * nu*Ni(4, 1, 2, h) / h / h;
+			B2(i * 8 + 4, 4 * num_points + 2 * i) += -D;
+
+			// V2
+			B2(i * 8 + 5, 2 * num_points + 2 * i - 2) += -D * (2 - nu)*Ni(1, 1, 2, h) / h / h;
+			B2(i * 8 + 5, 2 * num_points + 2 * i - 1) += -D * (2 - nu)*Ni(2, 1, 2, h) / h / h;
+			B2(i * 8 + 5, 2 * num_points + 2 * i) += -D * (2 - nu)*Ni(3, 1, 2, h) / h / h;
+			B2(i * 8 + 5, 2 * num_points + 2 * i + 1) += -D * (2 - nu)*Ni(4, 1, 2, h) / h / h;
+			B2(i * 8 + 5, 6 * num_points + 2 * i) += -D;
+
+			// d1_M2
+			B2(i * 8 + 6, 2 * i - 2) += -D * nu*Ni(1, 1, 3, h) / h / h / h;
+			B2(i * 8 + 6, 2 * i - 1) += -D * nu*Ni(2, 1, 3, h) / h / h / h;
+			B2(i * 8 + 6, 2 * i) += -D * nu*Ni(3, 1, 3, h) / h / h / h;
+			B2(i * 8 + 6, 2 * i + 1) += -D * nu*Ni(4, 1, 3, h) / h / h / h;
+			B2(i * 8 + 6, 4 * num_points + 2 * i + 1) += -D;
+
+			// d1_V2
+			B2(i * 8 + 7, 2 * num_points + 2 * i - 2) += -D * (2 - nu)*Ni(1, 1, 3, h) / h / h / h;
+			B2(i * 8 + 7, 2 * num_points + 2 * i - 1) += -D * (2 - nu)*Ni(2, 1, 3, h) / h / h / h;
+			B2(i * 8 + 7, 2 * num_points + 2 * i) += -D * (2 - nu)*Ni(3, 1, 3, h) / h / h / h;
+			B2(i * 8 + 7, 2 * num_points + 2 * i + 1) += -D * (2 - nu)*Ni(4, 1, 3, h) / h / h / h;
+			B2(i * 8 + 7, 6 * num_points + 2 * i + 1) += -D;
+
+		}
+		if (i < num_points)
+		{
+			factor++;
+			h = xmesh[i + 1] - xmesh[i];
+			E = EX[i];
+			nu = PRXY[i];
+			D = E * dh*dh*dh / (12 * (1 - nu * nu));
+
+			// M2
+			B2(i * 8 + 4, 2 * i) += -D * nu*Ni(1, 0, 2, h) / h / h;
+			B2(i * 8 + 4, 2 * i + 1) += -D * nu*Ni(2, 0, 2, h) / h / h;
+			B2(i * 8 + 4, 2 * i + 2) += -D * nu*Ni(3, 0, 2, h) / h / h;
+			B2(i * 8 + 4, 2 * i + 3) += -D * nu*Ni(4, 0, 2, h) / h / h;
+			B2(i * 8 + 4, 4 * num_points + 2 * i) += -D;
+
+			// V2
+			B2(i * 8 + 5, 2 * num_points + 2 * i) += -D * (2 - nu)*Ni(1, 0, 2, h) / h / h;
+			B2(i * 8 + 5, 2 * num_points + 2 * i + 1) += -D * (2 - nu)*Ni(2, 0, 2, h) / h / h;
+			B2(i * 8 + 5, 2 * num_points + 2 * i + 2) += -D * (2 - nu)*Ni(3, 0, 2, h) / h / h;
+			B2(i * 8 + 5, 2 * num_points + 2 * i + 3) += -D * (2 - nu)*Ni(4, 0, 2, h) / h / h;
+			B2(i * 8 + 5, 6 * num_points + 2 * i) += -D;
+
+			// d1_M2
+			B2(i * 8 + 6, 2 * i) += -D * nu*Ni(1, 0, 3, h) / h / h / h;
+			B2(i * 8 + 6, 2 * i + 1) += -D * nu*Ni(2, 0, 3, h) / h / h / h;
+			B2(i * 8 + 6, 2 * i + 2) += -D * nu*Ni(3, 0, 3, h) / h / h / h;
+			B2(i * 8 + 6, 2 * i + 3) += -D * nu*Ni(4, 0, 3, h) / h / h / h;
+			B2(i * 8 + 6, 4 * num_points + 2 * i + 1) += -D;
+
+			// d1_V2
+			B2(i * 8 + 7, 2 * num_points + 2 * i) += -D * (2 - nu)*Ni(1, 0, 3, h) / h / h / h;
+			B2(i * 8 + 7, 2 * num_points + 2 * i + 1) += -D * (2 - nu)*Ni(2, 0, 3, h) / h / h / h;
+			B2(i * 8 + 7, 2 * num_points + 2 * i + 2) += -D * (2 - nu)*Ni(3, 0, 3, h) / h / h / h;
+			B2(i * 8 + 7, 2 * num_points + 2 * i + 3) += -D * (2 - nu)*Ni(4, 0, 3, h) / h / h / h;
+			B2(i * 8 + 7, 6 * num_points + 2 * i + 1) += -D;
+		}
+
+		B2.block(i * 8 + 4, 0, 4, size_a) /= factor;
 	}
+
+	f << B2;
 }
 
 void DCFEMPL::construct()
@@ -146,7 +227,9 @@ void DCFEMPL::construct()
 	for (int i = 0; i < 3 * bsize; ++i)
 		mat_a(i, i + bsize) = 1;
 	MatrixXd K4(bsize, bsize), K0(bsize, bsize), K2(bsize, bsize);
-
+	K4.fill(0);
+	K0.fill(0);
+	K2.fill(0);
 	Matrix4d K4l, K0l, K2l;
 
 	for (int i = 0; i < xmesh.size() - 1; ++i)
