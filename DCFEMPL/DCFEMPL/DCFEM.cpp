@@ -13,9 +13,9 @@ double DCFEMPL::Ni(int i, double x, int s1, double h)
 		case 2:
 			return h * (x - 2 * x*x + x * x*x);
 		case 3:
-			return h * (3 * x*x - 2 * x*x*x);
+			return (3 * x*x - 2 * x*x*x);
 		case 4:
-			return x * x*x - x * x;
+			return h*(x * x*x - x * x);
 		default:
 			break;
 		}
@@ -28,9 +28,9 @@ double DCFEMPL::Ni(int i, double x, int s1, double h)
 		case 2:
 			return h * (1 - 4 * x + 3 * x*x);
 		case 3:
-			return h * (6 * x - 6 * x*x);
+			return (6 * x - 6 * x*x);
 		case 4:
-			return 3 * x*x - 2 * x;
+			return h*(3 * x*x - 2 * x);
 		default:
 			break;
 		}
@@ -43,9 +43,9 @@ double DCFEMPL::Ni(int i, double x, int s1, double h)
 		case 2:
 			return h * (6 * x - 4);
 		case 3:
-			return h * (6 - 12 * x);
+			return (6 - 12 * x);
 		case 4:
-			return 6 * x - 2;
+			return h*(6 * x - 2);
 		default:
 			break;
 		}
@@ -58,9 +58,9 @@ double DCFEMPL::Ni(int i, double x, int s1, double h)
 		case 2:
 			return 6 * h;
 		case 3:
-			return -12 * h;
+			return -12;
 		case 4:
-			return 6;
+			return 6 * h;
 		default:
 			break;
 		}

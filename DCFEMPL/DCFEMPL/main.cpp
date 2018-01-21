@@ -35,7 +35,7 @@ int main()
 
 	for (int i = 0; i < n2; i++)
 	{
-		FEMplate.add_bc(n2*(n1-1)+i, 2);
+		FEMplate.add_bc(n2*(n1-1)+i, 1);
 		//FEMplate.add_bc(i, 1);
 	}
 
@@ -49,7 +49,7 @@ int main()
 
 
 	DCFEMPL DCFEMplate(n2, 0, 0.5, y);
-	//DCFEMplate.add_force(0.25, n2 / 2 + 1, 10000);
+	DCFEMplate.add_force(0.25, n2 / 2 + 1, 10000);
 	DCFEMplate.set_mat(0, n2 - 2, E, nu);
 	DCFEMplate.construct();
 

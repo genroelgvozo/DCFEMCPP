@@ -457,6 +457,9 @@ void FEMPL_RECT::constructB()
 			B(8 * i + 7, j) = V(2);
 		}
 	}
+
+	f.precision(2);
+	f << fixed;
 	f << B;
 }
 
