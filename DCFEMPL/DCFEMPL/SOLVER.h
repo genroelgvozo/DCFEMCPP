@@ -35,7 +35,7 @@ public:
 	VectorXd res;
 	EigenSolver<MatrixXd>* eigen_sol;
 
-	MatrixXcd T, T1, P2, A2, A2_2, A2_3, A2_4, A2_5, A2_6, P2_2;
+	MatrixXcd T, T1, P1, P2, A1, A2, A2_2, A2_3, A2_4, A2_5, A2_6, P1_2, P2_2;
 	VectorXcd e, e2;
 
 	shared_ptr<spdlog::logger> logger;

@@ -493,7 +493,7 @@ void FEMPL_RECT::add_bc(int num_node, int type)
 		for (int i = 0; i < 4; i++)
 		{
 			K.row(num_node * node_dofs + i).fill(0);
-			K(num_node * node_dofs + i, num_node * node_dofs + i) = 100000000;
+			K(num_node * node_dofs + i, num_node * node_dofs + i) = 1000;
 			R(num_node*node_dofs + i) = 0;
 		}
 		break;
@@ -501,10 +501,10 @@ void FEMPL_RECT::add_bc(int num_node, int type)
 		for (int i = 0; i < 4; i++)
 		{
 			K.row(num_node * node_dofs + i).fill(0);
-			K(num_node * node_dofs + i, num_node * node_dofs + i) = 100000000;
+			K(num_node * node_dofs + i, num_node * node_dofs + i) = 1000;
 			R(num_node*node_dofs + i) = 0;
 		}
-		R(num_node*node_dofs) = 100000000;
+		R(num_node*node_dofs) = 1000;
 
 		break;
 	default:

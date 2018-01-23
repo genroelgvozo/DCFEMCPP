@@ -20,7 +20,7 @@ void SOLVER::calcFundFuncMatrix(double x, int l1, MatrixXcd & res)
 
 	double xi = (x + l2) > 0 ? 1 : 0;
 
-	res += xi * (P2 + A2 * x + A2_2 * x*x / 2.0 + A2_3 *(x*x*x / 6.0) + A2_4*(x*x*x*x / 24.0) + A2_5*(x*x*x*x*x / 120.0));
+	res += xi * (P2 + A2 * x + A2_2 * x*x / 2.0 + A2_3 *(x*x*x / 6.0));
 }
 
 void SOLVER::dotFundFuncMatrix(double x, int l1, const VectorXcd & C, VectorXcd & res)
@@ -42,7 +42,7 @@ void SOLVER::dotFundFuncMatrix(double x, int l1, const VectorXcd & C, VectorXcd 
 	res = T * res;
 
 	double xi = (x + l2) > 0 ? 1 : 0;
-	res += xi * (P2 + A2 * x + A2_2 * x*x / 2.0 + A2_3 * x*x*x / 6.0 + A2_4*x*x*x*x / 24.0 + A2_5*x*x*x*x*x / 120.0) * C;
+	res += xi * (P2 + A2 * x + A2_2 * x*x / 2.0 + A2_3 * x*x*x / 6.0 ) * C;
 }
 
 VectorXd SOLVER::calcConvolFundFunc(double x, int l)
@@ -67,8 +67,8 @@ void SOLVER::constructSystem()
 
 	K.fill(0);
 	R.fill(0);
-	K.block(size_dcfem + 4 * num_bound_points, size_dcfem, size_fem - 4 * num_bound_points, size_fem) = model2.K.block(4 * num_bound_points, 0, size_fem - 4 * num_bound_points, size_fem) / 1000000;
-	R.segment(size_dcfem + 4 * num_bound_points, size_fem - 4 * num_bound_points) = model2.R.segment(4 * num_bound_points, size_fem - 4 * num_bound_points) / 1000000;
+	K.block(size_dcfem + 4 * num_bound_points, size_dcfem, size_fem - 4 * num_bound_points, size_fem) = model2.K.block(4 * num_bound_points, 0, size_fem - 4 * num_bound_points, size_fem) ;
+	R.segment(size_dcfem + 4 * num_bound_points, size_fem - 4 * num_bound_points) = model2.R.segment(4 * num_bound_points, size_fem - 4 * num_bound_points);
 	MatrixXcd E(size_dcfem, size_dcfem), E2(size_dcfem, size_dcfem);
 
 	calcFundFuncMatrix(0.0, 1, E);
@@ -90,7 +90,7 @@ void SOLVER::compute_components()
 	VectorXcd tmp;
 	for (int i = 0; i < l; i++)
 	{
-		for (int j = 0; j < l; j++)
+		for (int j = i; j < l; j++)
 			if (abs(e2(j) - e(i)) < 0.001)
 			{
 				tmp = T1.row(i);
@@ -101,32 +101,34 @@ void SOLVER::compute_components()
 			}
 	}
 
-	for (int i = 0; i < l; i++)
-	{
-		T.col(i).normalize();
-	}
-
 
 	T1 = (T1*T).inverse() *  T1;
 
-	P2 = T * T1;
+	P1 = T * T1;
+	P1_2 = P1*P1;
 
+	A1 = P1*model1.mat_a;
 
-	P2 = -P2;
+	P2 = -P1;
 	for (int i = 0; i < size_dcfem; i++)
 		P2(i, i) = 1.0 + P2(i, i);
 
 	P2_2 = P2 * P2;
 	A2 = P2 * model1.mat_a;
+
+
+	//A2 = T;
+	//for (int i = 0; i < l; i++)
+	//	A2.col(i) *= e(i);
+	//A2 = A2*T1;
+	//A2 = model1.mat_a - A2;
 	A2_2 = A2 * A2;
 	A2_3 = A2_2 * A2;
 	A2_4 = A2_3 * A2;
 	A2_5 = A2_4 * A2;
 	A2_6 = A2_5 * A2;
 	A2_6 = A2_6 * A2;
-	A2_6 = A2_6 * A2;
-	A2_6 = A2_6 * A2;
-	A2_6 = A2_6 * A2;
+
 }
 
 
@@ -142,7 +144,7 @@ SOLVER::SOLVER(DCFEMPL& dcfem, FEMPL_RECT& fem) : model1(dcfem), model2(fem), si
 	l = size_dcfem - 6;
 
 	eigen_sol->compute(model1.mat_a);
-	e2 = eigen_sol->eigenvalues();
+	e = eigen_sol->eigenvalues();
 
 	T = eigen_sol->eigenvectors();
 	T.resize(size_dcfem, l);
@@ -152,7 +154,7 @@ SOLVER::SOLVER(DCFEMPL& dcfem, FEMPL_RECT& fem) : model1(dcfem), model2(fem), si
 
 	logger->info("Computing A_t eigenvectors...");
 	eigen_sol->compute(model1.mat_a);
-	e = eigen_sol->eigenvalues();
+	e2 = eigen_sol->eigenvalues();
 
 
 	T1 = eigen_sol->eigenvectors();
@@ -174,6 +176,14 @@ SOLVER::SOLVER(DCFEMPL& dcfem, FEMPL_RECT& fem) : model1(dcfem), model2(fem), si
 	}
 	f.close();
 
+	f.open("results/T.txt");
+	f << T << endl;
+	f.close();
+
+	f.open("results/T1.txt");
+	f << T1 << endl;
+	f.close();
+
 	f.open("results/P2.txt");
 	f << P2 << endl;
 	f.close();
@@ -183,6 +193,21 @@ SOLVER::SOLVER(DCFEMPL& dcfem, FEMPL_RECT& fem) : model1(dcfem), model2(fem), si
 	f << P2_2 << endl;
 	f.close();
 
+	f.open("results/P1.txt");
+	f << P1 << endl;
+	f.close();
+
+	f.open("results/P1xP1.txt");
+
+	f << P1_2 << endl;
+	f.close();
+
+	f.open("results/A1.txt");
+	f << A1<< endl;
+	f.close();
+	f.open("results/A1A2.txt");
+	f << (A1*A2).eval() << endl;
+	f.close();
 	f.open("results/A2.txt");
 	f << A2 << endl;
 	f.close();

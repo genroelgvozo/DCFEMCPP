@@ -243,15 +243,21 @@ void DCFEMPL::construct()
 		K2.block(i * 2, i * 2, 4, 4) += K2l;
 
 	}
-	ofstream f("logs/K4.txt");
+	ofstream f("results/K4.txt");
+	f.precision(3);
+	f << fixed;
 	f << K4 << endl;
 	f.close();
 	K4 = K4.inverse();
-	f.open("logs/K4_inv.txt");
+	f.open("results/K4_inv.txt");
 	f << K4 << endl;
 	f.close();
 	mat_a.block(3 * bsize, 0, bsize, bsize) = K4 * K0;
 	mat_a.block(3 * bsize, 2 * bsize, bsize, bsize) = K4 * K2;
+	f.open("results/mat_a.txt");
+	f << mat_a << endl;
+	f.close();
+
 	for (int i = 0; i < loads.size(); ++i)
 	{
 		VectorXd R1(size_a);
@@ -270,7 +276,7 @@ Matrix4d DCFEMPL::get_K2(int i)
 	double E = EX[i];
 	double nu = PRXY[i];
 	double D = E * dh*dh*dh / (12 * (1 - nu * nu));
-	Matrix4d K2_3, K2_2, H;
+	Matrix4d K2, K2_3, K2_2, H;
 
 	H.fill(0);
 	H(0, 0) = 1;
@@ -283,13 +289,13 @@ Matrix4d DCFEMPL::get_K2(int i)
 		-3, 1, 3, -4;
 	K2_3 = H * K2_3*H;
 	K2_3 = -D * nu*K2_3 / 30 / h;
-	K2_3 = K2_3.eval() + K2_3.transpose().eval();
+	K2 = K2_3 + K2_3.transpose();
 	K2_2 << 36, 3, -36, 3,
 		3, 4, -3, -1,
 		-36, -3, 36, -3,
 		3, -1, -3, 4;
 	K2_2 = H * K2_2*H;
 	K2_2 = D * (1 - nu)*K2_2 / 15 / h;
-
-	return K2_2 + K2_3;
+	K2 = K2 + K2_2;
+	return K2;
 }

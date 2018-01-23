@@ -80,7 +80,7 @@ public:
 	double x21, x22;
 
 	vector< double> EX, PRXY;
-	double dh = 0.1;
+	double dh = 1;
 	vector<load> loads;
 
 	vector<pair<double, VectorXd >> R;

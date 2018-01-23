@@ -88,5 +88,5 @@ private:
 	size_t x_size;
 	size_t y_size;
 
-	double h = 0.1;
+	double h = 1;
 };
