@@ -4,45 +4,60 @@ void SOLVER::calcFundFuncMatrix(double x, int l1, MatrixXcd & res)
 {
 	double l2;
 	if (l1 > 0)
-		l2 = 0.00001;
+		l2 = 0.001;
 	else
-		l2 = -0.00001;
-	res = T;
+		l2 = -0.001;
+	MatrixXcd temp(size_dcfem, l);
+	temp = T;
 	for (int i = 0; i < l; i++)
 	{
-		if (e(i).real() * (x + l2) < 0)
-			res.col(i) *= ((x + l2) > 0 ? 1.0 : -1.0)*exp(e(i)*x);
+		if ((e(i).real() < 0.000001 && (x + l2) > 0) || (e(i).real() > 0.000001 && (x + l2) < 0))
+		{
+			temp.col(i) *= ((x + l2) > 0 ? 1.0 : -1.0)*exp(e(i)*x);
+		}
 		else
-			res.col(i).fill(0);
+			temp.col(i).fill(0);
 	}
 
-	res = res * T1;
+	res = temp * T1;
 
-	double xi = (x + l2) > 0 ? 1 : 0;
 
-	res += xi * (P2 + A2 * x + A2_2 * x*x / 2.0 + A2_3 *(x*x*x / 6.0));
+	if (x + l2 > 0) {
+		res += (P2 + A2 * x + A2_2 * x*x / 2.0 + A2_3 *(x*x*x / 6.0)) / 2;
+	}
+	else
+	{
+		res -= (P2 + A2 * x + A2_2 * x*x / 2.0 + A2_3 *(x*x*x / 6.0)) / 2;
+	}
+
+
 }
 
-void SOLVER::dotFundFuncMatrix(double x, int l1, const VectorXcd & C, VectorXcd & res)
+void SOLVER::dotFundFuncMatrix(double x, int l1, const VectorXd & C1, VectorXcd & res)
 {
 	double l2;
 	if (l1 > 0)
-		l2 = 0.00001;
+		l2 = 0.001;
 	else
-		l2 = -0.00001;
-	res = T1 * C;
+		l2 = -0.001;
+	VectorXcd temp(l);
+	temp = T1*C1;
 	for (int i = 0; i < l; i++)
 	{
-		if (e(i).real() * (x + l2) < 0)
-			res(i) *= ((x + l2) > 0 ? 1.0 : -1.0)*exp(e(i)*x);
+		if ((e(i).real() < 0.000001 && (x + l2) > 0) || (e(i).real() > 0.000001 && (x + l2) < 0))
+			temp(i) *= ((x + l2) > 0 ? 1.0 : -1.0)*exp(e(i)*x);
 		else
-			res(i) = 0;
+			temp(i) = 0;
 	}
 
-	res = T * res;
-
-	double xi = (x + l2) > 0 ? 1 : 0;
-	res += xi * (P2 + A2 * x + A2_2 * x*x / 2.0 + A2_3 * x*x*x / 6.0 ) * C;
+	res = T * temp;
+	if (x + l2 > 0) {
+		res += (P2 + A2 * x + A2_2 * x*x / 2.0 + A2_3 *(x*x*x / 6.0))*C1 / 2;
+	}
+	else
+	{
+		res -= (P2 + A2 * x + A2_2 * x*x / 2.0 + A2_3 *(x*x*x / 6.0))*C1 / 2;
+	}
 }
 
 VectorXd SOLVER::calcConvolFundFunc(double x, int l)
@@ -60,6 +75,25 @@ VectorXd SOLVER::calcConvolFundFunc(double x, int l)
 	return S;
 }
 
+VectorXd SOLVER::calcSolution(double x, int l)
+{
+	VectorXd y(size_dcfem);
+	VectorXcd temp(size_dcfem);
+
+	MatrixXcd E(size_dcfem, size_dcfem), E2(size_dcfem, size_dcfem);
+
+	//dotFundFuncMatrix(x - model1.x21, l, C, temp);
+	calcFundFuncMatrix(x - model1.x21, l, E);
+
+	//y = temp.real();
+	//dotFundFuncMatrix(x - model1.x22, l, C, temp);
+	calcFundFuncMatrix(x - model1.x22, l, E2);
+	temp = (E - E2)*C;
+	y = temp.real();
+	y += calcConvolFundFunc(x, l);
+	return y;
+}
+
 void SOLVER::constructSystem()
 {
 	model2.constructB();
@@ -67,31 +101,62 @@ void SOLVER::constructSystem()
 
 	K.fill(0);
 	R.fill(0);
-	K.block(size_dcfem + 4 * num_bound_points, size_dcfem, size_fem - 4 * num_bound_points, size_fem) = model2.K.block(4 * num_bound_points, 0, size_fem - 4 * num_bound_points, size_fem) ;
-	R.segment(size_dcfem + 4 * num_bound_points, size_fem - 4 * num_bound_points) = model2.R.segment(4 * num_bound_points, size_fem - 4 * num_bound_points);
 	MatrixXcd E(size_dcfem, size_dcfem), E2(size_dcfem, size_dcfem);
-
+	VectorXd rr(size_dcfem / 2);
+	rr.fill(0);
+	for (int i = 0; i < model1.num_points; i++)
+		rr[i * 4] = 1;
 	calcFundFuncMatrix(0.0, 1, E);
 	calcFundFuncMatrix(model1.x21 - model1.x22, 1, E2);
-	K.block(0, 0, size_dcfem / 2, size_dcfem) = model1.B1 * (E - E2).real();
-	R.segment(0, size_dcfem / 2) = -model1.B1 * calcConvolFundFunc(model1.x21, 1);
+	E = E - E2;
+	K.block(0, 0, size_dcfem / 2, size_dcfem) = model1.B1 * E.real();
+	R.segment(0, size_dcfem / 2) = rr - model1.B1 * calcConvolFundFunc(model1.x21, 1);
 
+	E.fill(0);
+	E2.fill(0);
 	calcFundFuncMatrix(model1.x22 - model1.x21, -1, E);
 	calcFundFuncMatrix(0.0, -1, E2);
-	K.block(size_dcfem / 2, 0, 8 * num_bound_points, size_dcfem) = model1.B2 * (E - E2).real();
+	E = E - E2;
+	K.block(size_dcfem / 2, 0, size_dcfem, size_dcfem) = model1.B2 * E.real();
 	K.block(size_dcfem / 2, size_dcfem, size_dcfem, size_fem) = -model2.B;
 	R.segment(size_dcfem / 2, size_dcfem) = -model1.B2 * calcConvolFundFunc(model1.x22, -1);
 
+
+	ofstream f("results/R_solver.txt");
+	f.precision(3);
+	f << fixed;
+	f << R;
+	f.close();
+
+	K.block(size_dcfem + size_dcfem / 2, size_dcfem, size_fem - 4 * num_bound_points, size_fem) =
+		model2.K.block(4 * num_bound_points, 0, size_fem - 4 * num_bound_points, size_fem);
+	R.segment(size_dcfem + size_dcfem / 2, size_fem - 4 * num_bound_points) = model2.R.segment(4 * num_bound_points, size_fem - 4 * num_bound_points);
+
 	res = K.colPivHouseholderQr().solve(R);
+
+	//C = res.segment(0, size_dcfem);
+	C = K.block(0, 0, size_dcfem, size_dcfem).colPivHouseholderQr().solve(R.segment(0, size_dcfem));
 }
 
 void SOLVER::compute_components()
 {
 	VectorXcd tmp;
+	for (int i = l; i > 0; i--)
+		for (int j = 0; j < i - 1; j++)
+		{
+			if (e(j).real() < e(j + 1).real())
+			{
+				tmp = T.col(j);
+				T.col(j) = T.col(j + 1);
+				T.col(j + 1) = tmp;
+				swap(e(j), e(j + 1));
+			}
+		}
+
 	for (int i = 0; i < l; i++)
 	{
 		for (int j = i; j < l; j++)
-			if (abs(e2(j) - e(i)) < 0.001)
+			if (abs(e2(j).real() - e(i).real()) < 0.001 && abs(e2(j).imag() - e(i).imag()) < 0.001)
 			{
 				tmp = T1.row(i);
 				T1.row(i) = T1.row(j);
@@ -127,41 +192,33 @@ void SOLVER::compute_components()
 	A2_4 = A2_3 * A2;
 	A2_5 = A2_4 * A2;
 	A2_6 = A2_5 * A2;
-	A2_6 = A2_6 * A2;
+
 
 }
 
 
-SOLVER::SOLVER(DCFEMPL& dcfem, FEMPL_RECT& fem) : model1(dcfem), model2(fem), size_dcfem(dcfem.size_a), eigen_sol(new EigenSolver<MatrixXd>(size_dcfem)) {
+SOLVER::SOLVER(DCFEMPL& dcfem, FEMPL_RECT& fem) : model1(dcfem), model2(fem), size_dcfem(dcfem.size_a), eigen_sol(EigenSolver<MatrixXd>(size_dcfem)) {
 
-	logger = spdlog::basic_logger_st("SOLVER logger", "logs/solver.txt");
-	logger->info("");
-	logger->info("------------------------");
-	logger->info("-- SOLVER constructor --");
-	logger->info("------------------------");
-	logger->info("Computing eigenvalues and eigenvectors...");
 
 	l = size_dcfem - 6;
 
-	eigen_sol->compute(model1.mat_a);
-	e = eigen_sol->eigenvalues();
+	eigen_sol.compute(model1.mat_a);
+	e = eigen_sol.eigenvalues();
 
-	T = eigen_sol->eigenvectors();
+	T = eigen_sol.eigenvectors();
 	T.resize(size_dcfem, l);
-	logger->info("T and e was computed.");
+
 
 	model1.mat_a.transposeInPlace();
 
-	logger->info("Computing A_t eigenvectors...");
-	eigen_sol->compute(model1.mat_a);
-	e2 = eigen_sol->eigenvalues();
+	eigen_sol.compute(model1.mat_a);
+	e2 = eigen_sol.eigenvalues();
 
 
-	T1 = eigen_sol->eigenvectors();
+	T1 = eigen_sol.eigenvectors();
 	T1.resize(l, size_dcfem);
-	logger->info("T1 was computed.");
 
-	delete eigen_sol;
+
 	model1.mat_a.transposeInPlace();
 
 	compute_components();
@@ -203,10 +260,17 @@ SOLVER::SOLVER(DCFEMPL& dcfem, FEMPL_RECT& fem) : model1(dcfem), model2(fem), si
 	f.close();
 
 	f.open("results/A1.txt");
-	f << A1<< endl;
+	f << A1 << endl;
+	f.close();
+
+	f.open("results/AP1.txt");
+	f << model1.mat_a * P1 << endl;
 	f.close();
 	f.open("results/A1A2.txt");
 	f << (A1*A2).eval() << endl;
+	f.close();
+	f.open("results/A2A1.txt");
+	f << (A2*A1).eval() << endl;
 	f.close();
 	f.open("results/A2.txt");
 	f << A2 << endl;
@@ -227,11 +291,20 @@ SOLVER::SOLVER(DCFEMPL& dcfem, FEMPL_RECT& fem) : model1(dcfem), model2(fem), si
 	f << A2_6 << endl;
 	f.close();
 
-	MatrixXcd E, E2;
+	MatrixXcd E(size_dcfem, size_dcfem), E2(size_dcfem, size_dcfem);
 	calcFundFuncMatrix(0, 1, E);
 	calcFundFuncMatrix(0, -1, E2);
 	f.open("results/E-E2.txt");
 	f << E - E2 << endl;
+	f.close();
+	f.open("results/P1+P2.txt");
+	f << P1 + P2 << endl;
+	f.close();
+
+
+	f.open("results/mat_a2.txt");
+	f.precision(5);
+	f << model1.mat_a << endl;
 	f.close();
 
 	size_fem = model2.get_size();
@@ -240,8 +313,4 @@ SOLVER::SOLVER(DCFEMPL& dcfem, FEMPL_RECT& fem) : model1(dcfem), model2(fem), si
 	K.resize(size_k, size_k);
 	R.resize(size_k);
 
-	logger->info("----------------------------");
-	logger->info("-- END SOLVER constructor --");
-	logger->info("----------------------------");
-	logger->info("");
 }

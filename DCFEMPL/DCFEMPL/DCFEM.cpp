@@ -135,13 +135,13 @@ void DCFEMPL::constructB()
 	B2.fill(0);
 	for (int i = 0; i < num_points; i++)
 	{
-		B2(i * 8, 2 * i) = 1;						// displacement
-		B2(i * 8 + 1, 2 * i + 1) = 1;						// theta_x = d_1(y) = z1
-		B2(i * 8 + 2, 2 * num_points + 2 * i) = 1;	// theta_y = d_2(y) = y2
-		B2(i * 8 + 3, 2 * num_points + 2 * i + 1) = 1;		// wxy = z2
+		B2(i * 4 + 0, 2 * i) = 1;						// displacement
+		B2(i * 4 + 1, 2 * i + 1) = 1;						// theta_x = d_1(y) = z1
+		B2(i * 4 + 2, 2 * num_points + 2 * i) = 1;	// theta_y = d_2(y) = y2
+		B2(i * 4 + 3, 2 * num_points + 2 * i + 1) = 1;		// wxy = z2
 		int factor = 0;
 		double h, E, nu, D;
-
+		/*
 		if (i > 0) {
 			factor++;
 			h = xmesh[i] - xmesh[i - 1];
@@ -214,9 +214,10 @@ void DCFEMPL::constructB()
 			B2(i * 8 + 7, 2 * num_points + 2 * i + 3) += -D * (2 - nu)*Ni(4, 0, 3, h) / h / h / h;
 			B2(i * 8 + 7, 6 * num_points + 2 * i + 1) += -D;
 		}
-
-		B2.block(i * 8 + 4, 0, 4, size_a) /= factor;
+		*/
+		//B2.block(i * 8 + 4, 0, 4, size_a) /= factor;
 	}
+
 
 	f << B2;
 }
@@ -263,8 +264,8 @@ void DCFEMPL::construct()
 		VectorXd R1(size_a);
 		R1.fill(0);
 		if (loads[i].type == 1)
-			R1[size_a / 2 + (loads[i].num_node - 1)*num_dofs + 1] = loads[i].value;
-		R1 = K4 * R1;
+			R1[3 * bsize + (loads[i].num_node - 1) * 2] = loads[i].value;
+		R1.segment(3 * bsize, bsize) = -K4 * R1.segment(3 * bsize, bsize);
 		R.push_back({ loads[i].x2,R1 });
 	}
 
@@ -289,7 +290,8 @@ Matrix4d DCFEMPL::get_K2(int i)
 		-3, 1, 3, -4;
 	K2_3 = H * K2_3*H;
 	K2_3 = -D * nu*K2_3 / 30 / h;
-	K2 = K2_3 + K2_3.transpose();
+	K2 = K2_3;
+	K2 += K2_3.transpose();
 	K2_2 << 36, 3, -36, 3,
 		3, 4, -3, -1,
 		-36, -3, 36, -3,

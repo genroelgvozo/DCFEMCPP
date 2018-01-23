@@ -30,7 +30,8 @@ public:
 	MatrixXd get_Bi(int i, double x, double y, double a, double b);
 
 	FEMPL_RECT(int num_points, const vd& x, const vd& y) : FEM_base(num_points, 4),
-		xmesh(x), ymesh(y), EX(vvd(x.size() - 1, vd(y.size() - 1, 0))), PRXY(vvd(x.size() - 1, vd(y.size() - 1, 0))), press(vvd(x.size() - 1, vd(y.size() - 1, 0))) {
+		xmesh(x), ymesh(y), EX(vvd(x.size() - 1, vd(y.size() - 1, 0))), PRXY(vvd(x.size() - 1, vd(y.size() - 1, 0))), press(vvd(x.size() - 1, vd(y.size() - 1, 0))),
+			forces(vvd(x.size(), vd(y.size(), 0))) {
 
 		x_size = xmesh.size();
 		y_size = ymesh.size();
@@ -68,6 +69,10 @@ public:
 				press[i][j] = _press;
 	}
 
+	void add_force(int i, int j, double f)
+	{
+		forces[i][j] = f;
+	}
 	void constructB();
 
 	void constructK();
@@ -85,6 +90,7 @@ private:
 
 	vector< vector<double>> EX, PRXY;
 	vector < vector<double>> press;
+	vector<vector<double>> forces;
 	size_t x_size;
 	size_t y_size;
 

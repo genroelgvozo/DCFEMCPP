@@ -4,7 +4,8 @@
 #include "eigen/Eigen/Dense"
 #include <memory>
 #include "eigen\Eigen\EigenValues"
-#include "spdlog/spdlog.h"
+
+#include <iostream>
 #include <fstream>
 
 
@@ -33,19 +34,21 @@ public:
 	MatrixXd K;
 	VectorXd R;
 	VectorXd res;
-	EigenSolver<MatrixXd>* eigen_sol;
+	VectorXd C;
+	EigenSolver<MatrixXd> eigen_sol;
 
 	MatrixXcd T, T1, P1, P2, A1, A2, A2_2, A2_3, A2_4, A2_5, A2_6, P1_2, P2_2;
 	VectorXcd e, e2;
 
-	shared_ptr<spdlog::logger> logger;
 
 	double eps_zero = 1e-4;
 
 	void calcFundFuncMatrix(double x, int l1, MatrixXcd& res);
-	void dotFundFuncMatrix(double x, int l1, const VectorXcd& C, VectorXcd& res);
+	void dotFundFuncMatrix(double x, int l1, const VectorXd& C, VectorXcd& res);
 
 	VectorXd calcConvolFundFunc(double x, int l);
+
+	VectorXd calcSolution(double x,int l);
 
 	void constructSystem();
 

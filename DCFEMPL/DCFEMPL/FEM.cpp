@@ -109,6 +109,7 @@ MatrixXd FEMPL_RECT::get_Klocal1(int i, int j)
 	E = EX[i][j];
 	nu = PRXY[i][j];
 	Matrix3d D;
+	D.fill(0);
 	D(0, 0) = E * h*h*h / (12 * (1 - nu * nu));
 	D(1, 1) = D(0, 0);
 	D(0, 1) = D(1, 0) = D(0, 0) * nu;
@@ -298,6 +299,7 @@ void FEMPL_RECT::calc_elem_moments(VectorXd u, int i, int j, double x, double y,
 	E = EX[i][j];
 	nu = PRXY[i][j];
 	Matrix3d D;
+	D.fill(0);
 	D(0, 0) = E * h*h*h / (12 * (1 - nu * nu));
 	D(1, 1) = D(0, 0);
 	D(0, 1) = D(1, 0) = D(0, 0) * nu;
@@ -342,6 +344,7 @@ void FEMPL_RECT::calc_elem_result(VectorXd u, int i, int j, int num, VectorXd& M
 	nu = PRXY[i][j];
 
 	MatrixXd D(4, 5);
+	D.fill(0);
 	D(0, 0) = E * h*h*h / (12 * (1 - nu * nu));
 	D(1, 1) = D(0, 0);
 	D(0, 1) = D(1, 0) = D(0, 0) * nu;
@@ -430,21 +433,21 @@ void FEMPL_RECT::constructB()
 	ofstream f("results/B_FEM.txt");
 	B.fill(0);
 
+	double a, b;
+	a = xmesh[1] - xmesh[0];
+	b = ymesh[1] - ymesh[0];
 	for (int i = 0; i < y_size; i++)
 	{
-		double a, b;
-		a = xmesh[1] - xmesh[0];
-		b = ymesh[i + 1] - ymesh[i];
-		B(8 * i, 4 * i) = 1;
-		B(8 * i + 3, 4 * i + 3) = 1;
-		B(8 * i + 1, 4 * i + 1) = 1.0 / a;
-		B(8 * i + 2, 4 * i + 2) = 1.0 / b;
+		B(4 * y_size + 4 * i, 4 * i) = 10;
+		B(4 * y_size + 4 * i + 1, 4 * i + 1) = 100.0 / a;
+		B(4 * y_size + 4 * i + 2, 4 * i + 2) = 100.0 / b;
+		B(4 * y_size + 4 * i + 3, 4 * i + 3) = 10;
 	}
 
 	VectorXd u(size_k);
 	VectorXd M(4);
 	VectorXd V(3);
-
+	/*
 	for (int i = 0; i < y_size; i++)
 	{
 		for (int j = 0; j < size_k; ++j) {
@@ -457,7 +460,7 @@ void FEMPL_RECT::constructB()
 			B(8 * i + 7, j) = V(2);
 		}
 	}
-
+	*/
 	f.precision(2);
 	f << fixed;
 	f << B;
@@ -483,6 +486,9 @@ void FEMPL_RECT::constructK()
 			for (int num1 = 0; num1 < 4; ++num1)
 				R.segment(num[num1] * node_dofs, node_dofs) = R.segment(num[num1] * node_dofs, node_dofs) + Rl.segment(num1 * node_dofs, node_dofs);
 		}
+	for (int i = 0; i < x_size; i++)
+		for (int j = 0; j < y_size; j++)
+			R[(i * y_size + j) * 4] += forces[i][j];
 }
 
 void FEMPL_RECT::add_bc(int num_node, int type)
