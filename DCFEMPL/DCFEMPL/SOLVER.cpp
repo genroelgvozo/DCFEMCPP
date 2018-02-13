@@ -11,7 +11,8 @@ void SOLVER::calcFundFuncMatrix(double x, int l1, MatrixXcd & res)
 	temp = T;
 	for (int i = 0; i < l; i++)
 	{
-		if ((e(i).real() < 0.000001 && (x + l2) > 0) || (e(i).real() > 0.000001 && (x + l2) < 0))
+		if ((e(i).real() < 0.00001 && (x + l2) > 0) ||
+			(e(i).real() > 0 && (x + l2) < 0))
 		{
 			temp.col(i) *= ((x + l2) > 0 ? 1.0 : -1.0)*exp(e(i)*x);
 		}
@@ -21,14 +22,14 @@ void SOLVER::calcFundFuncMatrix(double x, int l1, MatrixXcd & res)
 
 	res = temp * T1;
 
-
-	if (x + l2 > 0) {
-		res += (P2 + A2 * x + A2_2 * x*x / 2.0 + A2_3 *(x*x*x / 6.0)) / 2;
-	}
-	else
-	{
-		res -= (P2 + A2 * x + A2_2 * x*x / 2.0 + A2_3 *(x*x*x / 6.0)) / 2;
-	}
+	if (l < size_dcfem)
+		if (x + l2 > 0) {
+			res += (P2 + A2 * x + A2_2 * x*x / 2.0 + A2_3 *(x*x*x / 6.0)) / 2;
+		}
+		else
+		{
+			res -= (P2 + A2 * x + A2_2 * x*x / 2.0 + A2_3 *(x*x*x / 6.0)) / 2;
+		}
 
 
 }
@@ -51,13 +52,14 @@ void SOLVER::dotFundFuncMatrix(double x, int l1, const VectorXd & C1, VectorXcd 
 	}
 
 	res = T * temp;
-	if (x + l2 > 0) {
-		res += (P2 + A2 * x + A2_2 * x*x / 2.0 + A2_3 *(x*x*x / 6.0))*C1 / 2;
-	}
-	else
-	{
-		res -= (P2 + A2 * x + A2_2 * x*x / 2.0 + A2_3 *(x*x*x / 6.0))*C1 / 2;
-	}
+	if (l < size_dcfem)
+		if (x + l2 > 0) {
+			res += (P2 + A2 * x + A2_2 * x*x / 2.0 + A2_3 *(x*x*x / 6.0))*C1 / 2;
+		}
+		else
+		{
+			res -= (P2 + A2 * x + A2_2 * x*x / 2.0 + A2_3 *(x*x*x / 6.0))*C1 / 2;
+		}
 }
 
 VectorXd SOLVER::calcConvolFundFunc(double x, int l)
@@ -141,7 +143,29 @@ void SOLVER::constructSystem()
 void SOLVER::compute_components()
 {
 	VectorXcd tmp;
+
 	for (int i = l; i > 0; i--)
+		for (int j = 0; j < i - 1; j++)
+		{
+			if (abs(e(j).real()) < abs(e(j + 1).real()))
+			{
+				tmp = T.col(j);
+				T.col(j) = T.col(j + 1);
+				T.col(j + 1) = tmp;
+				swap(e(j), e(j + 1));
+			}
+		}
+	int first_zero = 0;
+	for (int i = 0; i < l; i++)
+		if (abs(e(i).real()) < 0.001)
+		{
+			first_zero = i;
+			break;
+		}
+	//for (int i = first_zero; i < l; i++)
+		//e(i) = complex<double>(0.0, e(i).imag());
+
+	for (int i = first_zero; i > 0; i--)
 		for (int j = 0; j < i - 1; j++)
 		{
 			if (e(j).real() < e(j + 1).real())
@@ -153,6 +177,17 @@ void SOLVER::compute_components()
 			}
 		}
 
+	for (int i = l; i > first_zero; i--)
+	{
+		for (int j = first_zero; j < i - 1; j++)
+			if (e(j).imag() < e(j + 1).imag())
+			{
+				tmp = T.col(j);
+				T.col(j) = T.col(j + 1);
+				T.col(j + 1) = tmp;
+				swap(e(j), e(j + 1));
+			}
+	}
 	for (int i = 0; i < l; i++)
 	{
 		for (int j = i; j < l; j++)
@@ -200,7 +235,8 @@ void SOLVER::compute_components()
 SOLVER::SOLVER(DCFEMPL& dcfem, FEMPL_RECT& fem) : model1(dcfem), model2(fem), size_dcfem(dcfem.size_a), eigen_sol(EigenSolver<MatrixXd>(size_dcfem)) {
 
 
-	l = size_dcfem - 6;
+	//l = size_dcfem - 6;
+	l = size_dcfem ;
 
 	eigen_sol.compute(model1.mat_a);
 	e = eigen_sol.eigenvalues();
@@ -224,15 +260,16 @@ SOLVER::SOLVER(DCFEMPL& dcfem, FEMPL_RECT& fem) : model1(dcfem), model2(fem), si
 	compute_components();
 
 	ofstream f("results/eigen_values.txt");
-	f.precision(3);
+	f.precision(4);
 	f << fixed;
 
 	for (int i = 0; i < e.size(); i++)
 	{
-		f << e(i) << " " << e2(i) << endl;
+		f << e(i) << "\t" << e2(i) << endl;
 	}
 	f.close();
 
+	f.precision(3);
 	f.open("results/T.txt");
 	f << T << endl;
 	f.close();

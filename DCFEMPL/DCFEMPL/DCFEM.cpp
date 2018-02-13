@@ -76,7 +76,7 @@ Matrix4d DCFEMPL::get_K0(int i)
 	double E = EX[i];
 	double nu = PRXY[i];
 	double D = E * dh*dh*dh / (12 * (1 - nu * nu));
-	Matrix4d K0, H;
+	Matrix4d K0, H, K0_2;
 	H.fill(0);
 	H(0, 0) = 1;
 	H(1, 1) = h;
@@ -90,6 +90,13 @@ Matrix4d DCFEMPL::get_K0(int i)
 	K0 = H * K0*H;
 	K0 = 2 * D*K0 / h / h / h;
 
+	K0_2 << 156, 22, 54, -13,
+		22, 4, 13, -3,
+		54, 13, 156, -22,
+		-13, -3, -22, 4;
+	K0_2 = H* K0_2 * H;
+	K0_2 = D / 2 * K0_2 * h / 420;
+	K0 = K0 +  K0_2;
 	return K0;
 
 }
@@ -255,6 +262,9 @@ void DCFEMPL::construct()
 	f.open("results/K4_inv.txt");
 	f << K4 << endl;
 	f.close();
+	f.open("results/K2.txt");
+	f << K2 << endl;
+	f.close();
 	mat_a.block(3 * bsize, 0, bsize, bsize) = K4 * K0;
 	mat_a.block(3 * bsize, 2 * bsize, bsize, bsize) = K4 * K2;
 	f.open("results/mat_a.txt");
@@ -293,7 +303,7 @@ Matrix4d DCFEMPL::get_K2(int i)
 	K2_3 = H * K2_3*H;
 	K2_3 = -D * nu*K2_3 / 30 / h;
 	K2 = K2_3;
-	K2 += K2_3.transpose();
+	K2 += K2_3.transpose().eval();
 	K2_2 << 36, 3, -36, 3,
 		     3, 4, -3, -1,
 		  -36, -3, 36, -3,

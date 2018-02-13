@@ -11,9 +11,9 @@ using namespace std;
 
 double E = 3000;
 double nu = 0.16;
-double h1 = 10, h2 = 10;
+double h1 = 5, h2 = 5;
 
-const int n1 = 6, n2 = 6;
+const int n1 = 6, n2 = 2;
 
 int main()
 {
@@ -39,7 +39,7 @@ int main()
 
 	for (int i = 0; i < n2; i++)
 	{
-		FEMplate.add_bc(n2*(n1-1)+i, 1);
+		FEMplate.add_bc(n2*(n1 - 1) + i, 1);
 		//FEMplate.add_bc(i, 1);
 	}
 
@@ -52,10 +52,10 @@ int main()
 
 
 
-	DCFEMPL DCFEMplate(n2, 0, 50, y);
+	DCFEMPL DCFEMplate(n2, 0, h1*(n1 - 1), y);
 	for (int i = 0; i < n2; i++)
 	{
-		DCFEMplate.add_force(30, i, 1);
+		//DCFEMplate.add_force(30, i, 1);
 	}
 	DCFEMplate.set_mat(0, n2 - 2, E, nu);
 	DCFEMplate.construct();
@@ -78,23 +78,21 @@ int main()
 	f.close();
 
 	f.open("results/w_dcfem.txt");
-	for (int i = 0; i < n1; i++)
+	int count = 26;
+	for (int i = 0; i < count; i++)
 	{
-		double x2 = h1*i;
+		double x2 = i * (h1*(n1 - 1)) / (count - 1);
 
-		f << "x = " << x2 << endl;
+		f << "x = " << x2 << "  \ty = ";
 		VectorXd y;
-		y= sol.calcSolution(x2, -1);
+		if (i == count - 1) y = sol.calcSolution(x2, -1);
+		else y = sol.calcSolution(x2, 1);
 		for (int j = 0; j < n2; j++)
 		{
 			f << y[j * 2] << " ";
 		}
-		f << endl;
-		y = sol.calcSolution(x2, 1);
-		for (int j = 0; j < n2; j++)
-		{
-			f << y[j * 2] << " ";
-		}
+
+
 		f << endl;
 	}
 	f.close();
@@ -107,6 +105,9 @@ int main()
 	f.open("results/K_solver.txt");
 	f << sol.K << endl;
 	f.close();
+
+	complex<double> c = complex<double>(1.0, 1.0);
+	cout << c << " "<<exp(c);
 
 	return 0;
 }
