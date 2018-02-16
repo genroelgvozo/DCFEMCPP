@@ -55,7 +55,7 @@ int main()
 	DCFEMPL DCFEMplate(n2, 0, h1*(n1 - 1), y);
 	for (int i = 0; i < n2; i++)
 	{
-		//DCFEMplate.add_force(30, i, 1);
+		DCFEMplate.add_force(25, i, 1);
 	}
 	DCFEMplate.set_mat(0, n2 - 2, E, nu);
 	DCFEMplate.construct();

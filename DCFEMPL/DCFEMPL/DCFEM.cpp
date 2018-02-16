@@ -88,7 +88,7 @@ Matrix4d DCFEMPL::get_K0(int i)
 		3, 1, -3, 2;
 
 	K0 = H * K0*H;
-	K0 = 2 * D*K0 / h / h / h;
+	K0 = -2 * D*K0 / h / h / h;
 
 	K0_2 << 156, 22, 54, -13,
 		22, 4, 13, -3,
@@ -96,7 +96,7 @@ Matrix4d DCFEMPL::get_K0(int i)
 		-13, -3, -22, 4;
 	K0_2 = H* K0_2 * H;
 	K0_2 = D / 2 * K0_2 * h / 420;
-	K0 = K0 +  K0_2;
+	//K0 = K0 +  K0_2;
 	return K0;
 
 }
@@ -309,7 +309,7 @@ Matrix4d DCFEMPL::get_K2(int i)
 		  -36, -3, 36, -3,
 		    3, -1, -3, 4;
 	K2_2 = H * K2_2*H;
-	K2_2 = D * (1 - nu)*K2_2 / 15 / h;
+	K2_2 = -D * (1 - nu)*K2_2 / 15 / h;
 	K2 = K2 + K2_2;
 	return K2;
 }

@@ -236,7 +236,7 @@ SOLVER::SOLVER(DCFEMPL& dcfem, FEMPL_RECT& fem) : model1(dcfem), model2(fem), si
 
 
 	//l = size_dcfem - 6;
-	l = size_dcfem ;
+	l = size_dcfem - 6 ;
 
 	eigen_sol.compute(model1.mat_a);
 	e = eigen_sol.eigenvalues();
@@ -260,7 +260,7 @@ SOLVER::SOLVER(DCFEMPL& dcfem, FEMPL_RECT& fem) : model1(dcfem), model2(fem), si
 	compute_components();
 
 	ofstream f("results/eigen_values.txt");
-	f.precision(4);
+	f.precision(3);
 	f << fixed;
 
 	for (int i = 0; i < e.size(); i++)
@@ -292,7 +292,6 @@ SOLVER::SOLVER(DCFEMPL& dcfem, FEMPL_RECT& fem) : model1(dcfem), model2(fem), si
 	f.close();
 
 	f.open("results/P1xP1.txt");
-
 	f << P1_2 << endl;
 	f.close();
 
